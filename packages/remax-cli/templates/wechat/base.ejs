@@ -1,6 +1,6 @@
 <template name="REMAX_TPL">
   <block wx:for="{{tree.root.children}}" wx:key="{{item.id}}">
-    <template is="REMAX_TPL_1" data="{{i: item}}"/>
+    <template is="REMAX_TPL_1_CONTAINER" data="{{i: item}}"/>
   </block>
 </template>
 
@@ -14,17 +14,16 @@
 
 <% for (var i = 1; i <= depth; i++) { %>
     <%var id = i; %>
-<template name="REMAX_TPL_<%= id%>">
-  <block>
-    <block wx:if="{{i && i.text}}">{{i.text}}</block>
     <% for (let component of components) { %>
       <%- include('./component.ejs', {
         type: component.type,
         props: component.props,
         id: component.id,
-        templateId: id + 1
+        templateId: id,
       }) %>
     <% } %>
-  </block>
+<template name="REMAX_TPL_<%=id%>_plain-text">{{i.text}}</template>
+<template name="REMAX_TPL_<%=id%>_CONTAINER" data="{{i: i}}" >
+  <template is="{{'REMAX_TPL_<%=id%>_' + i.type}}" data="{{i: i}}" />
 </template>
 <% } %>

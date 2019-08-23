@@ -1,7 +1,7 @@
 import * as t from '@babel/types';
 import { NodePath } from '@babel/traverse';
 import { get } from 'dot-prop';
-import { kebabCase, unionBy } from 'lodash';
+import { kebabCase } from 'lodash';
 import { Adapter } from '../adapters';
 
 interface Component {
@@ -11,7 +11,7 @@ interface Component {
   children?: Component[];
 }
 
-const components: Component[] = [];
+const components: { [id: string]: Component } = {};
 
 export default (adapter: Adapter) => () => ({
   visitor: {
@@ -33,8 +33,7 @@ export default (adapter: Adapter) => () => ({
           return;
         }
 
-        // 基础组件
-        node.openingElement.attributes.map(e => {
+        const usedProps = node.openingElement.attributes.map(e => {
           if (t.isJSXAttribute(e)) {
             const propName = get(e, 'name.name') as string;
             return propName;
@@ -49,12 +48,24 @@ export default (adapter: Adapter) => () => ({
           return;
         }
 
-        const { props } = adapter.hostComponents(id);
+        const props = usedProps
+          .filter(prop => !!prop)
+          .map(prop => adapter.getNativePropName(prop as string));
 
-        components.push({
-          type: kebabCase(componentName),
-          id,
-          props,
+        if (!components[id]) {
+          components[id] = {
+            type: kebabCase(componentName),
+            id,
+            props,
+          };
+        }
+
+        props.forEach(prop => {
+          if (components[id].props.findIndex(item => item === prop) !== -1) {
+            return;
+          }
+
+          components[id].props.push(prop);
         });
       }
     },
@@ -62,5 +73,5 @@ export default (adapter: Adapter) => () => ({
 });
 
 export function getComponents() {
-  return unionBy(components, 'type');
+  return Object.values(components);
 }
