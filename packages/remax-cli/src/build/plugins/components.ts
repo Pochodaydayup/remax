@@ -1,25 +1,32 @@
+import * as path from 'path';
 import * as t from '@babel/types';
 import { NodePath } from '@babel/traverse';
 import { get } from 'dot-prop';
 import { kebabCase } from 'lodash';
 import { Adapter } from '../adapters';
 
-interface Component {
-  type: string;
+export interface Element {
   id: string;
+  type: string;
   props: string[];
-  children?: Component[];
+  path: string;
 }
 
-const components: { [id: string]: Component } = {};
+const elements: Element[] = [];
+let elementId = 0;
+
+const generateId = () => {
+  elementId += 1;
+  return elementId.toString();
+};
 
 export default (adapter: Adapter) => () => ({
   visitor: {
-    JSXElement(path: NodePath) {
-      const node = path.node as t.JSXElement;
+    JSXElement(nodePath: NodePath, state: any) {
+      const node = nodePath.node as t.JSXElement;
       if (t.isJSXIdentifier(node.openingElement.name)) {
         const tagName = node.openingElement.name.name;
-        const binding = path.scope.getBinding(tagName);
+        const binding = nodePath.scope.getBinding(tagName);
         if (!binding) {
           return;
         }
@@ -41,10 +48,10 @@ export default (adapter: Adapter) => () => ({
         });
 
         const componentName = componentPath.node.imported.name;
+        const type = kebabCase(componentName);
+        const id = type + generateId();
 
-        const id = kebabCase(componentName);
-
-        if (id === 'swiper-item') {
+        if (type === 'swiper-item') {
           return;
         }
 
@@ -52,26 +59,25 @@ export default (adapter: Adapter) => () => ({
           .filter(prop => !!prop)
           .map(prop => adapter.getNativePropName(prop as string));
 
-        if (!components[id]) {
-          components[id] = {
-            type: kebabCase(componentName),
-            id,
-            props,
-          };
-        }
+        const { filename, cwd } = state.file.opts;
+        const modulePath = filename.replace(path.resolve(cwd, 'src') + '/', '');
+        const elementPath = path.join(path.dirname(modulePath), id);
 
-        props.forEach(prop => {
-          if (components[id].props.findIndex(item => item === prop) !== -1) {
-            return;
-          }
+        node.openingElement.attributes.push(
+          t.jsxAttribute(t.jsxIdentifier('__id__'), t.stringLiteral(id))
+        );
 
-          components[id].props.push(prop);
+        elements.push({
+          id,
+          type,
+          props,
+          path: elementPath,
         });
       }
     },
   },
 });
 
-export function getComponents() {
-  return Object.values(components);
+export function getElements() {
+  return elements;
 }

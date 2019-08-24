@@ -17,6 +17,7 @@ const templateBaseDir = path.join(__dirname, '../../../../templates');
 export const templates = {
   base: path.join(templateBaseDir, 'wechat/base.ejs'),
   component: path.join(templateBaseDir, 'wechat/component.ejs'),
+  element: path.join(templateBaseDir, 'wechat/element.ejs'),
   page: path.join(templateBaseDir, 'wechat/page.ejs'),
   jsHelper: path.join(templateBaseDir, 'helper.js'),
 };

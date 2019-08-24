@@ -2,7 +2,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { parse } from 'acorn';
 import { Plugin, OutputChunk } from 'rollup';
-import { getComponents } from './components';
+import { getElements, Element } from './components';
 import ejs from 'ejs';
 import { RemaxOptions } from '../../getConfig';
 import readManifest from '../../readManifest';
@@ -10,6 +10,21 @@ import getEntries from '../../getEntries';
 import { Adapter } from '../adapters';
 import { Context } from '../../types';
 import winPath from '../../winPath';
+
+async function createElementTemplate(element: Element, adapter: Adapter) {
+  const fileName = element.path + adapter.extensions.template;
+  const code: string = await ejs.renderFile(adapter.templates.element, {
+    type: element.type,
+    id: element.id,
+    props: element.props,
+  });
+
+  return {
+    fileName,
+    isAsset: true as true,
+    source: code,
+  };
+}
 
 async function createTemplate(pageFile: string, adapter: Adapter) {
   const fileName = `${path.dirname(pageFile)}/${path.basename(
@@ -51,12 +66,12 @@ async function createHelperFile(adapter: Adapter) {
 }
 
 async function createBaseTemplate(adapter: Adapter, options: RemaxOptions) {
-  const components = getComponents();
+  const elements = getElements();
   let code: string = await ejs.renderFile(
     adapter.templates.base,
     {
-      components,
-      depth: options.UNSAFE_wechatTemplateDepth,
+      components: elements,
+      // depth: options.UNSAFE_wechatTemplateDepth,
     },
     {
       rmWhitespace: true,
@@ -158,6 +173,18 @@ export default function template(
       const manifest = createAppManifest(options, adapter.name, context);
       bundle[manifest.fileName] = manifest;
 
+      // const elements = getElements();
+      // const elementTemplates: string[] = [];
+
+      // elements.forEach(async element => {
+      //   elementTemplates.push(element.path + adapter.extensions.template);
+      // });
+
+      // elements.forEach(async element => {
+      //   const template = await createElementTemplate(element, adapter);
+      //   bundle[template.fileName] = template;
+      // });
+
       const template = await createBaseTemplate(adapter, options);
       bundle[template.fileName] = template;
 
@@ -175,6 +202,10 @@ export default function template(
             const filePath = Object.keys(chunk.modules)[0];
             const page = pages.find(p => p.file === filePath);
             if (page) {
+              // const elementPaths = elementTemplates.map(template =>
+              //   winPath(path.relative(path.dirname(file), template))
+              // );
+
               const template = await createTemplate(file, adapter);
               bundle[template.fileName] = template;
               const config = await createPageManifest(
